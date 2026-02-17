@@ -1,0 +1,59 @@
+import { fetch } from 'wix-fetch';
+import { getSecret } from 'wix-secrets-backend';
+
+/**
+ * "The Oracle of the Mystic Seed" — Gemini AI chatbot backend.
+ * API key must be stored in Wix Secrets Manager with the name "GEMINI_API_KEY".
+ */
+
+const SYSTEM_INSTRUCTION = `You are "The Oracle of the Mystic Seed". You provide poetic, botanical, and philosophical guidance to visitors of a mystical bookstore.
+Your tone is wise, earthy, and gentle. Always reference growth, seeds, roots, or light.
+If asked for book recommendations, suggest fictional titles that sound mystical or relate to the user's mood.
+Keep responses concise (under 100 words).`;
+
+/**
+ * Calls the Gemini API with a user prompt and returns the Oracle's guidance.
+ * @param {string} userPrompt - The user's message to the Oracle.
+ * @returns {Promise<string>} - The Oracle's response text.
+ */
+export async function getOracleGuidance(userPrompt) {
+    try {
+        const apiKey = await getSecret("GEMINI_API_KEY");
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+        const requestBody = {
+            system_instruction: {
+                parts: [{ text: SYSTEM_INSTRUCTION }]
+            },
+            contents: [
+                {
+                    role: "user",
+                    parts: [{ text: userPrompt }]
+                }
+            ],
+            generationConfig: {
+                temperature: 0.8,
+                maxOutputTokens: 256
+            }
+        };
+
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            console.error("Gemini API error:", response.status, await response.text());
+            return "The stars are occluded at the moment. Plant your intentions and return when the moon is high.";
+        }
+
+        const data = await response.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        return text || "The Oracle rests in silence. Try again when the wind shifts.";
+
+    } catch (error) {
+        console.error("Oracle error:", error);
+        return "The stars are occluded at the moment. Plant your intentions and return when the moon is high.";
+    }
+}
